@@ -6,7 +6,7 @@
 :root{
   --backround : #1e1e1e;
   --primary : #EB5939;
-  --border:#B7AB98;
+  --border:rgba(183, 171, 152, 0.4);
 }
 
 
@@ -16,8 +16,12 @@
   font-family: 'Mensura';
   background-color: var(--backround);
   color: #ffffff;
+
 }
  
+span{
+  color: var(--primary);
+}
 
 /* navigation menu */
 
@@ -81,4 +85,25 @@
   align-items: center;
   margin-top: 0px;
   padding-top: 0px;
+}
+/* 
+Footer section */
+
+.footer-container{
+  margin: auto;
+  width: 80%;
+}
+.intro-footer h1{
+  color:rgba(183, 171, 152, 0.15) ;
+  font-size: 87px;
+  text-align: center;
+  font-weight: 900;
+}
+.bottom-bar{
+  display: flex;
+  justify-content: space-between;
+  border: var(--border) 1px solid ;
+  padding: 5px;
+  border-radius: 8px;
+
 }

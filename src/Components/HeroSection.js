@@ -12,7 +12,7 @@ function HeroSection() {
         </div>
         <div>
             <p>
-            A dedicated and seasoned software engineer in my fourth year in the field with a passion 
+            A dedicated and seasoned <span>software engineer</span> in my fourth year in the field with a passion 
             for transforming abstract concepts into functional and innovative solutions.</p>
         </div>
       
