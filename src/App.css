@@ -17,3 +17,42 @@
   background-color: var(--backround);
   color: #ffffff;
 }
+
+
+.nav-container {
+  margin: auto;
+  width: 80%;
+  display: flex;
+  justify-content: space-between; 
+  align-items: center; 
+  padding: 10px 0; 
+}
+
+.nav-menu ul {
+  list-style: none;
+  display: flex;
+  justify-content: center;
+  gap: 20px; 
+  padding: 0; 
+  margin: 0; 
+}
+
+.nav-logo img {
+  width: 215px;
+  height: 137px;
+  object-fit: contain;
+  
+}
+
+.nav-icons {
+  display: flex;
+  gap: 15px; 
+  align-items: center; 
+}
+
+.nav-icons img {
+  width: 38px;
+  height: 38px;
+  object-fit: contain;
+}
+
