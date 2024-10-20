@@ -1,9 +1,10 @@
 import React from 'react'
+import HeroSection from '../Components/HeroSection'
 
 function LandingPage() {
   return (
     <div>
-      <h1>Erick Kirui</h1>
+      <HeroSection />
     </div>
   )
 }
