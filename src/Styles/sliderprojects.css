@@ -1,60 +1,110 @@
 .slider-container {
   position: relative;
   width: 100%;
-  max-width: 450px; /* Adjust based on your needs */
+  max-width: 550px; /* Adjust for larger slider width */
   margin: auto;
   overflow: hidden;
 }
+
 .swiper-container {
-    width: 100%; /* Adjust to fit two columns */
-  }
-  
+  width: 100%;
+}
 
 .slider-item {
   position: relative;
   display: inline-block;
+  overflow: hidden;
+  border-radius: 8px;
+  transition: transform 0.3s ease-in-out;
+}
+
+.slider-item:hover {
+  transform: scale(1.05); /* Subtle zoom effect on hover */
 }
 
 .slider-item img {
-  width: 400px;
-  object-fit:cover;
-  height: 222px;
+ 
+  width: 550px; /* Ensures consistent image size */
+  height: 350px; /* Set to match required height */
+  object-fit: cover;
   display: block;
   border-radius: 8px;
 }
 
-.text-overlay h1{
-    background-color: transparent;
-}
-
 .text-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    color: white;
-    text-align: center;
-    
-    opacity: 0;
-    transition: opacity 0.3s ease-in-out;
-  background-color: rgba(0, 0, 0, 0.6); /* Dark background with some transparency */
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  color: white;
+  text-align: center;
+  opacity: 0;
+  transition: opacity 0.3s ease-in-out;
+  background-color: rgba(0, 0, 0, 0.7); /* Slightly darker background for better contrast */
+  border-radius: 8px;
 }
 
-.slider-item:hover .text-overlay {
+.text-overlay h1 {
+  font-size: 20px;
+  font-weight: bold;
+  margin-bottom: 10px;
+  background-color: transparent;
+}
+
+.text-overlay:hover {
   opacity: 1;
 }
 
 button {
-    background-color: transparent;
-    padding: 10px 20px;
-    border: 1px solid #ffffff;
-    cursor: pointer;
-    border-radius: 4px;
-    font-size: 16px;
-    transition: background-color 0.3s ease;
+  background-color: transparent;
+  padding: 10px 20px;
+  border: 1px solid #ffffff;
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 16px;
+  color: #ffffff;
+  transition: all 0.3s ease;
+}
+
+button:hover {
+  background-color: #ffffff;
+  color: #000000;
+  border: 1px solid #000000;
+}
+
+/* Adjustments for responsiveness */
+@media (max-width: 768px) {
+  .slider-container {
+    max-width: 100%; /* Allow full width on smaller screens */
   }
+
+  .slider-item img {
+    max-width: 100%;
+    max-height: 200px;
+  }
+
+  .text-overlay h1 {
+    font-size: 18px;
+  }
+
+  button {
+    font-size: 14px;
+    padding: 8px 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .text-overlay h1 {
+    font-size: 16px;
+  }
+
+  button {
+    font-size: 12px;
+    padding: 6px 12px;
+  }
+}
