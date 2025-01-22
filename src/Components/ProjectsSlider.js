@@ -10,9 +10,7 @@ function ProjectsSlider() {
   return (
     <div className="slider-wrapper">
 
-      <div className='intro-footer'>
-            <h1>Creating Art With Code</h1>
-        </div>
+     
       {/* First Swiper with 4 cards (Right-to-Left) */}
       <Swiper
         spaceBetween={20}
@@ -59,6 +57,10 @@ function ProjectsSlider() {
           </div>
         </SwiperSlide>
       </Swiper>
+
+      <div className='intro-footer'>
+            <h1>Creating Art With Code</h1>
+        </div>
 
       {/* Second Swiper with 4 cards (Left-to-Right - Reverse) */}
       <Swiper

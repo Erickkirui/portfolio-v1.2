@@ -1,0 +1,20 @@
+.featured-project{
+    margin:auto;
+    width: 60%;
+}
+.featured-project ul{
+    display: flex;
+    gap: 10px;
+    padding: 0;
+}
+.featured-project img{
+
+}
+.featured-project li{
+    list-style: none;
+    display: flex;
+    border:  1px solid var(--border);
+    padding: 10px;
+
+    border-radius: 6px;
+}
