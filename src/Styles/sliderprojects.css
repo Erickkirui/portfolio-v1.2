@@ -1,9 +1,15 @@
+
+.slider-wrapper{
+  background: linear-gradient(135deg, hsl(230, 40%, 12%), hsl(230, 20%, 7%));
+
+}
 .slider-container {
   position: relative;
   width: 100%;
   max-width: 550px; /* Adjust for larger slider width */
   margin: auto;
   overflow: hidden;
+ 
 }
 
 .swiper-container {

@@ -9,6 +9,10 @@ import '../Styles/sliderprojects.css';
 function ProjectsSlider() {
   return (
     <div className="slider-wrapper">
+
+      <div className='intro-footer'>
+            <h1>Creating Art With Code</h1>
+        </div>
       {/* First Swiper with 4 cards (Right-to-Left) */}
       <Swiper
         spaceBetween={20}

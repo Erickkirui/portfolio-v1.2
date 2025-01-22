@@ -1,0 +1,21 @@
+
+.tech{
+    margin: auto;
+  width: 60%;
+}
+.tech-tree{
+    display: flex;
+    justify-content: left;
+    align-items: center;
+}
+ul{
+    display: flex;
+    gap: 10px;
+}
+.tech-tree li{
+    border: 1px solid var(--border);
+    padding: 10px;
+    border-radius: 6px;
+    list-style: none;
+    display: flex;
+}
