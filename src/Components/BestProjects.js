@@ -18,7 +18,7 @@ function BestProjects() {
                 React
             </li>
         </ul>
-        <img alt="Ngo-connect image"  src='/images/ngoconnect.jpg'/>
+        <img  src='/images/ngoconnect.jpg'/>
 
 
     </div>
