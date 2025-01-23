@@ -1,0 +1,17 @@
+.about-container{
+    text-align: center;
+    width: 60%;
+    margin: auto;
+}
+.svg-container{
+
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+
+  
+}
