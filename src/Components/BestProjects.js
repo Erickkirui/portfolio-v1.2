@@ -15,7 +15,7 @@ function BestProjects() {
         <li>Flask</li>
         <li>React</li>
       </ul>
-      <img src='/images/ngoconnect.jpg' />
+      <img src='/images/ngoconnect.jpg' alt="screenshot of projects" />
     </div>
   );
 }

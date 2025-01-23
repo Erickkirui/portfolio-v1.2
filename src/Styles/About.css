@@ -2,9 +2,10 @@
     text-align: center;
     width: 60%;
     margin: auto;
+ 
 }
-.svg-container{
 
+.svg-container{
     position: absolute;
     top: 0;
     left: 0;
@@ -13,5 +14,27 @@
     align-items: center;
     width: 100%;
 
-  
+
+}
+
+/* Storyline css */
+.story-container{
+    width: 80%;
+    margin: auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: end;
+    gap: 20px;
+}
+
+.storyline:nth-child(even){
+ margin-left: 800px;
+}
+.storyline{
+    border: 1px  solid var(--border);
+    padding: 20px;
+    border-radius: 8px;
+    width: 40%;
+    
+    
 }
