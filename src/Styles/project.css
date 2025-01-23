@@ -8,7 +8,7 @@
     padding: 0;
 }
 .featured-project img{
-
+ width: 90%;
 }
 .featured-project li{
     list-style: none;
