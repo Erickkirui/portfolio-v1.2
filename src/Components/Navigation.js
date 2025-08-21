@@ -4,6 +4,15 @@ import { FaBars, FaTimes } from 'react-icons/fa'; // hamburger + close icons
 function Navigation() {
   const [isOpen, setIsOpen] = useState(false);
 
+  // Scroll to section by ID
+  const scrollToSection = (id) => {
+    const section = document.getElementById(id);
+    if (section) {
+      section.scrollIntoView({ behavior: "smooth" });
+      setIsOpen(false); // close menu on mobile after click
+    }
+  };
+
   return (
     <div className='nav-container'>
       {/* Logo */}
@@ -20,19 +29,18 @@ function Navigation() {
       <div className={`nav-menu ${isOpen ? "active" : ""}`}>
         <nav>
           <ul>
-            <li>About Me</li>
-            <li>Contacts</li>
-            <li>Projects</li>
+            <li onClick={() => scrollToSection("about-section")}>About Me</li>
+            <li onClick={() => scrollToSection("contact-section")}>Contacts</li>
+            <li onClick={() => scrollToSection("projects-section")}>Projects</li>
           </ul>
         </nav>
       </div>
 
       {/* Social Icons */}
       <div className='nav-icons'>
-     <a href="https://github.com/Erickkirui" target="_blank" rel="noopener noreferrer">
-        <img src="/images/GitHub.png" alt="GitHub" />
-      </a>
-
+        <a href="https://github.com/Erickkirui" target="_blank" rel="noopener noreferrer">
+          <img src="/images/GitHub.png" alt="GitHub" />
+        </a>
         <img src='/images/Instagram.png' alt='Instagram' />
         <img src='/images/LinkedIn.png' alt='LinkedIn' />
       </div>

@@ -15,7 +15,10 @@ function App() {
           <Route path="/about-me" element={<AboutMe />} />
         </Routes>
       </div>
-      <Footer />
+       <section id="contact-section">
+          <Footer />
+       </section>
+      
     </Router>
   );
 }

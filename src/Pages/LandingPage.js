@@ -7,10 +7,20 @@ import BestProjects from '../Components/BestProjects'
 function LandingPage() {
   return (
     <div className='home-page-container'>
-      <HeroSection />
+      {/* Hero Section */}
+      <section id="about-section">
+        <HeroSection />
+      </section>
+
+      {/* Technologies */}
       <Technologies />
-      <ProjectsSlider />
-      <BestProjects />
+
+      {/* Projects Section */}
+      <section id="projects-section">
+        <ProjectsSlider />
+        <BestProjects />
+      </section>
+
     </div>
   )
 }
