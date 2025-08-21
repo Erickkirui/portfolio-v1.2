@@ -1,6 +1,10 @@
 
 .slider-wrapper{
   background: linear-gradient(135deg, hsl(230, 40%, 12%), hsl(230, 20%, 7%));
+  margin: auto;
+  width: 90%;
+  border-radius: 20px;
+  padding: 20px;
 
 }
 .slider-container {
@@ -30,7 +34,7 @@
 
 .slider-item img {
  
-  width: 400px; /* Ensures consistent image size */
+  width: 350px; /* Ensures consistent image size */
   height: 250px; /* Set to match required height */
   object-fit: cover;
   display: block;

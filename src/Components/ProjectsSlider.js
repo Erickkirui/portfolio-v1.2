@@ -12,7 +12,7 @@ function ProjectsSlider() {
 
      
       {/* First Swiper with 4 cards (Right-to-Left) */}
-      <Swiper
+      {/* <Swiper
         spaceBetween={20}
         slidesPerView={3}
         loop={true}
@@ -56,7 +56,7 @@ function ProjectsSlider() {
             </div>
           </div>
         </SwiperSlide>
-      </Swiper>
+      </Swiper> */}
 
       <div className='intro-footer'>
             <h1>Creating Art With Code</h1>

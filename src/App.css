@@ -28,36 +28,35 @@ span{
 }
 
 /* navigation menu */
-
 .nav-container {
   margin: auto;
   width: 100%;
   display: flex;
   justify-content: space-around;
-  align-items: center; 
-  padding: 10px 0; 
+  align-items: center;
+  padding: 10px 0;
+  position: relative;
 }
 
 .nav-menu ul {
   list-style: none;
   display: flex;
   justify-content: center;
-  gap: 20px; 
-  padding: 0; 
-  margin: 0; 
+  gap: 20px;
+  padding: 0;
+  margin: 0;
 }
 
 .nav-logo img {
   width: 215px;
   height: 137px;
   object-fit: contain;
-  
 }
 
 .nav-icons {
   display: flex;
-  gap: 15px; 
-  align-items: center; 
+  gap: 15px;
+  align-items: center;
 }
 
 .nav-icons img {
@@ -65,6 +64,62 @@ span{
   height: 38px;
   object-fit: contain;
 }
+
+/* Mobile toggle button */
+.nav-toggle {
+  display: none;
+  font-size: 28px;
+  cursor: pointer;
+}
+
+/* ===================== */
+/* Responsive Styles     */
+/* ===================== */
+@media screen and (max-width: 768px) {
+  .nav-container {
+    justify-content: space-between;
+    padding: 10px 20px;
+  }
+
+  /* Hide menu by default */
+  .nav-menu {
+    display: none;
+    position: absolute;
+    top: 70px;
+    left: 0;
+    width: 100%;
+    background: #fff;
+    padding: 20px 0;
+    text-align: center;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  }
+
+  .nav-menu.active {
+    display: block;
+  }
+
+  .nav-menu ul {
+    flex-direction: column;
+    gap: 15px;
+  }
+
+  /* Social icons hidden on mobile */
+  .nav-icons {
+    display: none;
+  }
+
+  /* Show hamburger */
+  .nav-toggle {
+    display: block;
+  }
+
+  /* Scale down logo */
+  .nav-logo img {
+    width: 150px;
+    height: auto;
+  }
+}
+
 
 /* Hero section */
 

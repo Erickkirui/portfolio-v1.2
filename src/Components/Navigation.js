@@ -1,34 +1,40 @@
-import React from 'react'
+import React, { useState } from 'react';
+import { FaBars, FaTimes } from 'react-icons/fa'; // hamburger + close icons
 
 function Navigation() {
+  const [isOpen, setIsOpen] = useState(false);
+
   return (
     <div className='nav-container'>
-        <div className='nav-logo'>
-            <img src='/images/logo.png' alt='erick-kirui-logo' />
-    
-        </div>
+      {/* Logo */}
+      <div className='nav-logo'>
+        <img src='/images/logo.png' alt='erick-kirui-logo' />
+      </div>
 
-        <div className='nav-menu'>
-            <nav>
-                <ul>
-                    <li>About Me</li>
-                    <li>Contacts</li>
-                    <li>Projects</li>
-                </ul>
-            </nav>
+      {/* Toggle button (mobile only) */}
+      <div className='nav-toggle' onClick={() => setIsOpen(!isOpen)}>
+        {isOpen ? <FaTimes /> : <FaBars />}
+      </div>
 
-        </div>
+      {/* Menu */}
+      <div className={`nav-menu ${isOpen ? "active" : ""}`}>
+        <nav>
+          <ul>
+            <li>About Me</li>
+            <li>Contacts</li>
+            <li>Projects</li>
+          </ul>
+        </nav>
+      </div>
 
-        <div className='nav-icons'>
-            <img src='/images/GitHub.png' alt='erick-kirui-logo' />
-            <img src='/images/Instagram.png' alt='erick-kirui-logo' />
-            <img src='/images/LinkedIn.png' alt='erick-kirui-logo' />
-
-
-        </div>
-      
+      {/* Social Icons */}
+      <div className='nav-icons'>
+        <img src='/images/GitHub.png' alt='GitHub' />
+        <img src='/images/Instagram.png' alt='Instagram' />
+        <img src='/images/LinkedIn.png' alt='LinkedIn' />
+      </div>
     </div>
-  )
+  );
 }
 
-export default Navigation
+export default Navigation;
