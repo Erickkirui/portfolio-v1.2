@@ -80,16 +80,29 @@ function ProjectsSlider() {
             <img src="/images/PAWAIT.jpg" alt="PAWAIT" className="slider-image" />
             <div className="text-overlay">
               <h1>PAWAIT</h1>
-              <button>View website</button>
+              <a 
+                href="https://pawait.africa/" 
+                target="_blank" 
+                rel="noopener noreferrer"
+              >
+                <button>View website</button>
+              </a>
             </div>
           </div>
         </SwiperSlide>
+
           <SwiperSlide>
           <div className="slider-item">
             <img src="/images/ALSEYEEE-BIO.jpg" alt="ALSEYEEE Bio" className="slider-image" />
             <div className="text-overlay">
               <h1>ALSEYEEE Bio</h1>
-              <button>View website</button>
+              <a 
+                href="https://aleseyeebio.com/" 
+                target="_blank" 
+                rel="noopener noreferrer"
+              >
+                <button>View website</button>
+              </a>
             </div>
           </div>
         </SwiperSlide>
@@ -99,7 +112,14 @@ function ProjectsSlider() {
             <img src="/images/ROYALTY.jpg" alt="Royalty" className="slider-image" />
             <div className="text-overlay">
               <h1>Royalty</h1>
-              <button>View website</button>
+              
+              <a 
+                href="https://royaltyhomeskenya.com/" 
+                target="_blank" 
+                rel="noopener noreferrer"
+              >
+                <button>View website</button>
+              </a>
             </div>
           </div>
         </SwiperSlide>
@@ -108,7 +128,13 @@ function ProjectsSlider() {
             <img src="/images/VIRGIWAYS.jpg" alt="Virgiways Consultants" className="slider-image" />
             <div className="text-overlay">
               <h1>Virgiways Consultants</h1>
-              <button>View website</button>
+               <a 
+                href="https://virgiways.co.ke/" 
+                target="_blank" 
+                rel="noopener noreferrer"
+              >
+                <button>View website</button>
+              </a>
             </div>
           </div>
         </SwiperSlide>
@@ -117,7 +143,13 @@ function ProjectsSlider() {
             <img src="/images/YOUTHALIVE.jpg" alt="Youth Alive" className="slider-image" />
             <div className="text-overlay">
               <h1>Youth Alive</h1>
-              <button>View website</button>
+             <a 
+                href="https://youthalivekenya.org/" 
+                target="_blank" 
+                rel="noopener noreferrer"
+              >
+                <button>View website</button>
+              </a>
             </div>
           </div>
         </SwiperSlide>
