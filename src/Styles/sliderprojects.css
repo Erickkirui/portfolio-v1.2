@@ -34,8 +34,8 @@
 
 .slider-item img {
  
-  width: 350px; /* Ensures consistent image size */
-  height: 250px; /* Set to match required height */
+  width: 100%; /* Ensures consistent image size */
+  height: auto; /* Set to match required height */
   object-fit: cover;
   display: block;
   border-radius: 8px;

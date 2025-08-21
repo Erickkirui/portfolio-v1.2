@@ -84,20 +84,30 @@ function ProjectsSlider() {
             </div>
           </div>
         </SwiperSlide>
+          <SwiperSlide>
+          <div className="slider-item">
+            <img src="/images/ALSEYEEE-BIO.jpg" alt="ALSEYEEE Bio" className="slider-image" />
+            <div className="text-overlay">
+              <h1>ALSEYEEE Bio</h1>
+              <button>View website</button>
+            </div>
+          </div>
+        </SwiperSlide>
+        
         <SwiperSlide>
           <div className="slider-item">
-            <img src="/images/REALESTATE.jpg" alt="Real Estate" className="slider-image" />
+            <img src="/images/ROYALTY.jpg" alt="Royalty" className="slider-image" />
             <div className="text-overlay">
-              <h1>Real Estate</h1>
+              <h1>Royalty</h1>
               <button>View website</button>
             </div>
           </div>
         </SwiperSlide>
         <SwiperSlide>
           <div className="slider-item">
-            <img src="/images/ROYALTY.jpg" alt="Royalty" className="slider-image" />
+            <img src="/images/VIRGIWAYS.jpg" alt="Virgiways Consultants" className="slider-image" />
             <div className="text-overlay">
-              <h1>Royalty</h1>
+              <h1>Virgiways Consultants</h1>
               <button>View website</button>
             </div>
           </div>
