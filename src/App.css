@@ -71,6 +71,11 @@ span{
   font-size: 28px;
   cursor: pointer;
 }
+.home-page-container{
+  display: flex;
+  flex-direction: column;
+  gap: 60px;
+}
 
 /* ===================== */
 /* Responsive Styles     */

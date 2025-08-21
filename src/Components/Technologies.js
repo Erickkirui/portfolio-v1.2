@@ -15,6 +15,7 @@ function Technologies() {
         <ul>
             <li>Python </li>
             <li>Flask </li>
+            <li>Django</li>
             <li>SQL</li>
 
         </ul>

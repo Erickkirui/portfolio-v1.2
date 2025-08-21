@@ -6,7 +6,7 @@ import BestProjects from '../Components/BestProjects'
 
 function LandingPage() {
   return (
-    <div>
+    <div className='home-page-container'>
       <HeroSection />
       <Technologies />
       <ProjectsSlider />
