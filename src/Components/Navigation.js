@@ -29,7 +29,10 @@ function Navigation() {
 
       {/* Social Icons */}
       <div className='nav-icons'>
-        <img src='/images/GitHub.png' alt='GitHub' />
+     <a href="https://github.com/Erickkirui" target="_blank" rel="noopener noreferrer">
+        <img src="/images/GitHub.png" alt="GitHub" />
+      </a>
+
         <img src='/images/Instagram.png' alt='Instagram' />
         <img src='/images/LinkedIn.png' alt='LinkedIn' />
       </div>
