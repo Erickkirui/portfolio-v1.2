@@ -29,14 +29,14 @@ span{
 
 /* navigation menu */
 .nav-container {
-  margin: auto;
-  width: 100%;
-  display: flex;
-  justify-content: space-around;
-  align-items: center;
-  padding: 10px 0;
-  position: relative;
+  width: 90%;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 10px 10px 10px 10px;
+    position: relative;
 }
+    
 
 .nav-menu ul {
   list-style: none;
@@ -85,6 +85,14 @@ span{
     justify-content: space-between;
     padding: 10px 20px;
   }
+
+  .hero-container,
+.tech,
+.featured-project {
+  width: 80% !important;
+  margin: 0 auto; /* keeps it centered */
+}
+
 
   /* Hide menu by default */
   .nav-menu {

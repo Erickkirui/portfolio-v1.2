@@ -19,3 +19,21 @@
     list-style: none;
     display: flex;
 }
+
+@media screen and (max-width: 768px) {
+
+.tech-tree{
+    display: flex;
+    flex-direction: column;
+    
+
+}
+.tech-tree ul{
+    display: flex;
+    gap: 10px;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+}
+}

@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import HeroSection from "../Components/HeroSection";
-import ProjectsSlider from "../Components/ProjectsSlider";
+// import ProjectsSlider from "../Components/ProjectsSlider";
 import Technologies from "../Components/Technologies";
 import BestProjects from "../Components/BestProjects";
 
@@ -28,12 +28,12 @@ function LandingPage() {
 
       {/* Projects Section */}
       <section id="projects-section">
-        <ProjectsSlider />
+        {/* <ProjectsSlider /> */}
         <BestProjects />
       </section>
 
       {/* Embedded Form */}
-      <section>
+      {/* <section>
         <iframe
           src="https://link.streamlyne.io/widget/form/FYvFwfItX2PIb4Bg5gWs"
           style={{ width: "100%", height: "600px", border: "none", borderRadius: "3px" }}
@@ -51,7 +51,7 @@ function LandingPage() {
           data-form-id="FYvFwfItX2PIb4Bg5gWs"
           title="Erick Portfiolio"
         />
-      </section>
+      </section> */}
     </div>
   );
 }
