@@ -20,6 +20,7 @@ function Layout() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/about-me" element={<AboutMe />} />
           <Route path="/se-chat" element={<ChatApp />} />
+          <Route path="/se-chat/:roomCode" element={<ChatApp />} />
         </Routes>
       </div>
 

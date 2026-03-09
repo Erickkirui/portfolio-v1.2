@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { initializeApp } from "firebase/app";
 import {
   getFirestore,
@@ -80,11 +81,26 @@ const BOOT_SEQUENCE = [
 ];
 
 export default function ChatApp() {
-  // Persist session across refresh — rejoin room automatically
-  const hasSession = !!(
-    sessionStorage.getItem("tc_roomId") &&
-    sessionStorage.getItem("tc_username")
-  );
+  const { roomCode } = useParams(); // e.g. /se-chat/AB12CD
+  const navigate = useNavigate();
+
+  // If URL has a room code AND we have a username saved, auto-rejoin
+  const savedRoom = sessionStorage.getItem("tc_roomId");
+  const savedUser = sessionStorage.getItem("tc_username");
+  const urlRoomCode = roomCode ? roomCode.toUpperCase() : null;
+
+  // Sync sessionStorage room with URL room code if they differ
+  useEffect(() => {
+    if (urlRoomCode && savedUser && savedRoom !== urlRoomCode) {
+      // URL has a different room — update session to match URL
+      sessionStorage.setItem("tc_roomId", urlRoomCode);
+      if (!sessionStorage.getItem("tc_userId")) {
+        sessionStorage.setItem("tc_userId", SESSION_USER_ID);
+      }
+    }
+  }, [urlRoomCode, savedUser, savedRoom]);
+
+  const hasSession = !!(urlRoomCode && savedUser);
 
   const [screen, setScreen] = useState(hasSession ? SCREEN.CHAT : SCREEN.SETUP);
   const [bootDone, setBootDone] = useState(hasSession);
@@ -141,9 +157,9 @@ export default function ChatApp() {
         {!bootDone ? (
           <Boot lines={bootLines} />
         ) : screen === SCREEN.SETUP ? (
-          <SetupScreen onEnter={setScreen} />
+          <SetupScreen onEnter={setScreen} navigate={navigate} urlRoomCode={urlRoomCode} />
         ) : (
-          <ChatScreen onLeave={() => setScreen(SCREEN.SETUP)} />
+          <ChatScreen onLeave={() => setScreen(SCREEN.SETUP)} navigate={navigate} />
         )}
       </div>
     </div>
@@ -165,10 +181,10 @@ function Boot({ lines }) {
 }
 
 // ── Setup screen ─────────────────────────────────────────────────
-function SetupScreen({ onEnter }) {
+function SetupScreen({ onEnter, navigate, urlRoomCode }) {
   const [username, setUsername] = useState("");
-  const [roomInput, setRoomInput] = useState("");
-  const [mode, setMode] = useState(null);
+  const [roomInput, setRoomInput] = useState(urlRoomCode || "");
+  const [mode, setMode] = useState(urlRoomCode ? "join" : null);
   const [error, setError] = useState("");
   const inputRef = useRef(null);
 
@@ -180,7 +196,8 @@ function SetupScreen({ onEnter }) {
     sessionStorage.setItem("tc_username", username.trim().toUpperCase());
     sessionStorage.setItem("tc_roomId", id);
     sessionStorage.setItem("tc_userId", SESSION_USER_ID);
-    sessionStorage.setItem("tc_isOwner", "true"); // creator gets kick power
+    sessionStorage.setItem("tc_isOwner", "true");
+    navigate(`/se-chat/${id}`); // update URL to room code
     onEnter(SCREEN.CHAT);
   };
 
@@ -190,7 +207,8 @@ function SetupScreen({ onEnter }) {
     sessionStorage.setItem("tc_username", username.trim().toUpperCase());
     sessionStorage.setItem("tc_roomId", roomInput.trim().toUpperCase());
     sessionStorage.setItem("tc_userId", SESSION_USER_ID);
-    sessionStorage.removeItem("tc_isOwner"); // joiners are not owners
+    sessionStorage.removeItem("tc_isOwner");
+    navigate(`/se-chat/${roomInput.trim().toUpperCase()}`); // update URL
     onEnter(SCREEN.CHAT);
   };
 
@@ -262,7 +280,7 @@ function SetupScreen({ onEnter }) {
 }
 
 // ── Chat screen ──────────────────────────────────────────────────
-function ChatScreen({ onLeave }) {
+function ChatScreen({ onLeave, navigate }) {
   const username = sessionStorage.getItem("tc_username") || "ANON";
   const roomId   = sessionStorage.getItem("tc_roomId")   || "UNKNOWN";
   const userId   = sessionStorage.getItem("tc_userId")   || SESSION_USER_ID;
@@ -357,6 +375,7 @@ function ChatScreen({ onLeave }) {
     sessionStorage.removeItem("tc_roomId");
     sessionStorage.removeItem("tc_userId");
     sessionStorage.removeItem("tc_isOwner");
+    navigate("/se-chat");
     onLeave();
   };
 
@@ -383,7 +402,8 @@ function ChatScreen({ onLeave }) {
   };
 
   const copyRoom = () => {
-    navigator.clipboard.writeText(roomId);
+    const roomUrl = `${window.location.origin}/se-chat/${roomId}`;
+    navigator.clipboard.writeText(roomUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   };
@@ -397,6 +417,7 @@ function ChatScreen({ onLeave }) {
     sessionStorage.removeItem("tc_roomId");
     sessionStorage.removeItem("tc_userId");
     sessionStorage.removeItem("tc_isOwner");
+    navigate("/se-chat");
     onLeave();
   };
 
@@ -410,6 +431,7 @@ function ChatScreen({ onLeave }) {
           sessionStorage.removeItem("tc_roomId");
           sessionStorage.removeItem("tc_userId");
           sessionStorage.removeItem("tc_isOwner");
+          navigate("/se-chat");
           onLeave();
         }}>[BACK TO SETUP]</button>
       </div>
@@ -426,6 +448,7 @@ function ChatScreen({ onLeave }) {
           sessionStorage.removeItem("tc_roomId");
           sessionStorage.removeItem("tc_userId");
           sessionStorage.removeItem("tc_isOwner");
+          navigate("/se-chat");
           onLeave();
         }}>[BACK TO SETUP]</button>
       </div>
@@ -438,7 +461,7 @@ function ChatScreen({ onLeave }) {
         <span style={s.roomLabel}>ROOM:</span>
         <span style={s.roomId}>{roomId}</span>
         <button style={s.copyBtn} onClick={copyRoom}>
-          {copied ? "[COPIED!]" : "[COPY CODE]"}
+          {copied ? "[COPIED!]" : "[COPY LINK]"}
         </button>
         <span style={s.onlineLabel}>
           ONLINE: {onlineUsers.map((u) => u.username).join(", ") || "..."}
@@ -449,8 +472,8 @@ function ChatScreen({ onLeave }) {
 
       <div style={s.messages}>
         <div style={s.systemMsg}>
-          ── joined as <span style={s.ownName}>{username}</span> · room{" "}
-          <span style={s.roomCode}>{roomId}</span> · share the code with your friend ──
+          ── joined as <span style={s.ownName}>{username}</span> · share link:{" "}
+          <span style={s.roomCode}>{window.location.origin}/se-chat/{roomId}</span> ──
         </div>
         <div style={s.systemMsg}>
           ── content blurs when window loses focus · right-click disabled ──
