@@ -180,6 +180,7 @@ function SetupScreen({ onEnter }) {
     sessionStorage.setItem("tc_username", username.trim().toUpperCase());
     sessionStorage.setItem("tc_roomId", id);
     sessionStorage.setItem("tc_userId", SESSION_USER_ID);
+    sessionStorage.setItem("tc_isOwner", "true"); // creator gets kick power
     onEnter(SCREEN.CHAT);
   };
 
@@ -189,6 +190,7 @@ function SetupScreen({ onEnter }) {
     sessionStorage.setItem("tc_username", username.trim().toUpperCase());
     sessionStorage.setItem("tc_roomId", roomInput.trim().toUpperCase());
     sessionStorage.setItem("tc_userId", SESSION_USER_ID);
+    sessionStorage.removeItem("tc_isOwner"); // joiners are not owners
     onEnter(SCREEN.CHAT);
   };
 
@@ -264,11 +266,13 @@ function ChatScreen({ onLeave }) {
   const username = sessionStorage.getItem("tc_username") || "ANON";
   const roomId   = sessionStorage.getItem("tc_roomId")   || "UNKNOWN";
   const userId   = sessionStorage.getItem("tc_userId")   || SESSION_USER_ID;
+  const isOwner  = sessionStorage.getItem("tc_isOwner") === "true";
 
-  const [messages, setMessages]     = useState([]);
-  const [input, setInput]           = useState("");
-  const [onlineUsers, setOnlineUsers] = useState([]);
-  const [copied, setCopied]         = useState(false);
+  const [messages, setMessages]       = useState([]);
+  const [input, setInput]             = useState("");
+  const [onlineUsers, setOnlineUsers] = useState([]); // [{username, userId}]
+  const [copied, setCopied]           = useState(false);
+  const [kicked, setKicked]           = useState(false);
   const bottomRef = useRef(null);
   const inputRef  = useRef(null);
 
@@ -279,7 +283,16 @@ function ChatScreen({ onLeave }) {
 
     const unsub = onSnapshot(
       collection(db, "rooms", roomId, "presence"),
-      (snap) => setOnlineUsers(snap.docs.map((d) => d.data().username))
+      (snap) => {
+        const users = snap.docs.map((d) => ({ username: d.data().username, userId: d.id }));
+        setOnlineUsers(users);
+        // Check if this user has been kicked
+        const stillHere = snap.docs.find((d) => d.id === userId);
+        if (!stillHere && snap.docs.length >= 0) {
+          // Only trigger kicked if we were previously present (presence was deleted externally)
+          setKicked(true);
+        }
+      }
     );
 
     // Warn user before leaving/refreshing — do NOT auto-remove presence
@@ -328,6 +341,21 @@ function ChatScreen({ onLeave }) {
     });
   }, [input, roomId, username, userId]);
 
+  const kickUser = async (targetUserId, targetUsername) => {
+    if (!isOwner) return;
+    // Remove their presence — they will detect this and be shown the kicked screen
+    await deleteDoc(doc(db, "rooms", roomId, "presence", targetUserId));
+    // Post a system message
+    await addDoc(collection(db, "rooms", roomId, "messages"), {
+      text: `⚠ ${targetUsername} was removed from the room.`,
+      username: "SYSTEM",
+      userId: "SYSTEM",
+      timestamp: serverTimestamp(),
+      localTime: formatTime(),
+      system: true,
+    });
+  };
+
   const handleKey = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -349,8 +377,25 @@ function ChatScreen({ onLeave }) {
     sessionStorage.removeItem("tc_username");
     sessionStorage.removeItem("tc_roomId");
     sessionStorage.removeItem("tc_userId");
+    sessionStorage.removeItem("tc_isOwner");
     onLeave();
   };
+
+  if (kicked) {
+    return (
+      <div style={s.kickedScreen}>
+        <div style={s.kickedTitle}>⚠ REMOVED</div>
+        <div style={s.kickedMsg}>You have been removed from this room by the host.</div>
+        <button style={s.actionBtn} onClick={() => {
+          sessionStorage.removeItem("tc_username");
+          sessionStorage.removeItem("tc_roomId");
+          sessionStorage.removeItem("tc_userId");
+          sessionStorage.removeItem("tc_isOwner");
+          onLeave();
+        }}>[BACK TO SETUP]</button>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -361,7 +406,7 @@ function ChatScreen({ onLeave }) {
           {copied ? "[COPIED!]" : "[COPY CODE]"}
         </button>
         <span style={s.onlineLabel}>
-          ONLINE: {onlineUsers.join(", ") || "..."}
+          ONLINE: {onlineUsers.map((u) => u.username).join(", ") || "..."}
         </span>
         <button style={s.leaveBtn} onClick={leaveRoom}>[LEAVE]</button>
       </div>
@@ -374,6 +419,24 @@ function ChatScreen({ onLeave }) {
         <div style={s.systemMsg}>
           ── content blurs when window loses focus · right-click disabled ──
         </div>
+
+        {/* Owner kick panel */}
+        {isOwner && onlineUsers.filter((u) => u.userId !== userId).length > 0 && (
+          <div style={s.kickPanel}>
+            <span style={s.kickPanelLabel}>HOST CONTROLS:</span>
+            {onlineUsers
+              .filter((u) => u.userId !== userId)
+              .map((u) => (
+                <button
+                  key={u.userId}
+                  style={s.kickBtn}
+                  onClick={() => kickUser(u.userId, u.username)}
+                >
+                  [KICK {u.username}]
+                </button>
+              ))}
+          </div>
+        )}
 
         {messages.map((msg) => {
           const isOwn = msg.userId === userId;
@@ -622,4 +685,24 @@ const s = {
     background: "#080808", flexShrink: 0,
   },
   statusReady: { color: "#3a3a3a" },
+
+  // kick
+  kickPanel: {
+    display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
+    padding: "8px 10px", marginBottom: 12,
+    border: "1px solid #1e1e1e", background: "#0d0d0d",
+  },
+  kickPanelLabel: { fontSize: 10, color: "#333", letterSpacing: "0.1em" },
+  kickBtn: {
+    background: "transparent", border: "1px solid #3a1a1a", color: "#663333",
+    fontSize: 10, letterSpacing: "0.1em", padding: "3px 10px", transition: "all 0.15s",
+  },
+
+  // kicked screen
+  kickedScreen: {
+    flex: 1, display: "flex", flexDirection: "column", alignItems: "center",
+    justifyContent: "center", gap: 16, padding: 32,
+  },
+  kickedTitle: { fontSize: 20, color: "#ff5555", letterSpacing: "0.2em" },
+  kickedMsg: { fontSize: 12, color: "#444", letterSpacing: "0.08em", textAlign: "center" },
 };
