@@ -273,6 +273,7 @@ function ChatScreen({ onLeave }) {
   const [onlineUsers, setOnlineUsers] = useState([]); // [{username, userId}]
   const [copied, setCopied]           = useState(false);
   const [kicked, setKicked]           = useState(false);
+  const [roomDeleted, setRoomDeleted] = useState(false);
   const bottomRef = useRef(null);
   const inputRef  = useRef(null);
 
@@ -286,11 +287,12 @@ function ChatScreen({ onLeave }) {
       (snap) => {
         const users = snap.docs.map((d) => ({ username: d.data().username, userId: d.id }));
         setOnlineUsers(users);
-        // Check if this user has been kicked
+        // Check if this user has been kicked or room was deleted
         const stillHere = snap.docs.find((d) => d.id === userId);
-        if (!stillHere && snap.docs.length >= 0) {
-          // Only trigger kicked if we were previously present (presence was deleted externally)
-          setKicked(true);
+        if (!stillHere && snap.docs.length === 0) {
+          setRoomDeleted(true); // everyone is gone — room was deleted
+        } else if (!stillHere && snap.docs.length > 0) {
+          setKicked(true); // others still here — we were kicked
         }
       }
     );
@@ -341,6 +343,23 @@ function ChatScreen({ onLeave }) {
     });
   }, [input, roomId, username, userId]);
 
+  const deleteRoom = async () => {
+    if (!window.confirm("DELETE this room for everyone? This cannot be undone.")) return;
+    // Delete all messages
+    const messagesSnap = await getDocs(collection(db, "rooms", roomId, "messages"));
+    const presenceSnap = await getDocs(collection(db, "rooms", roomId, "presence"));
+    const deletions = [];
+    messagesSnap.forEach((d) => deletions.push(deleteDoc(d.ref)));
+    presenceSnap.forEach((d) => deletions.push(deleteDoc(d.ref)));
+    await Promise.all(deletions);
+    await deleteDoc(doc(db, "rooms", roomId));
+    sessionStorage.removeItem("tc_username");
+    sessionStorage.removeItem("tc_roomId");
+    sessionStorage.removeItem("tc_userId");
+    sessionStorage.removeItem("tc_isOwner");
+    onLeave();
+  };
+
   const kickUser = async (targetUserId, targetUsername) => {
     if (!isOwner) return;
     // Remove their presence — they will detect this and be shown the kicked screen
@@ -381,6 +400,22 @@ function ChatScreen({ onLeave }) {
     onLeave();
   };
 
+  if (roomDeleted) {
+    return (
+      <div style={s.kickedScreen}>
+        <div style={s.kickedTitle}>⚠ ROOM DELETED</div>
+        <div style={s.kickedMsg}>This room has been deleted by a user.</div>
+        <button style={s.actionBtn} onClick={() => {
+          sessionStorage.removeItem("tc_username");
+          sessionStorage.removeItem("tc_roomId");
+          sessionStorage.removeItem("tc_userId");
+          sessionStorage.removeItem("tc_isOwner");
+          onLeave();
+        }}>[BACK TO SETUP]</button>
+      </div>
+    );
+  }
+
   if (kicked) {
     return (
       <div style={s.kickedScreen}>
@@ -409,6 +444,7 @@ function ChatScreen({ onLeave }) {
           ONLINE: {onlineUsers.map((u) => u.username).join(", ") || "..."}
         </span>
         <button style={s.leaveBtn} onClick={leaveRoom}>[LEAVE]</button>
+        <button style={s.deleteBtn} onClick={deleteRoom}>[DELETE ROOM]</button>
       </div>
 
       <div style={s.messages}>
@@ -638,6 +674,10 @@ const s = {
   onlineLabel: { fontSize: 10, color: "#3a3a3a", letterSpacing: "0.08em", flex: 1 },
   leaveBtn: {
     background: "transparent", border: "1px solid #2a2a2a", color: "#555",
+    fontSize: 10, letterSpacing: "0.08em", padding: "3px 8px", transition: "all 0.15s",
+  },
+  deleteBtn: {
+    background: "transparent", border: "1px solid #3a1a1a", color: "#663333",
     fontSize: 10, letterSpacing: "0.08em", padding: "3px 8px", transition: "all 0.15s",
   },
 
