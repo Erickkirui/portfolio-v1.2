@@ -80,12 +80,19 @@ const BOOT_SEQUENCE = [
 ];
 
 export default function ChatApp() {
-  const [screen, setScreen] = useState(SCREEN.SETUP);
-  const [bootDone, setBootDone] = useState(false);
-  const [bootLines, setBootLines] = useState([]);
+  // Persist session across refresh — rejoin room automatically
+  const hasSession = !!(
+    sessionStorage.getItem("tc_roomId") &&
+    sessionStorage.getItem("tc_username")
+  );
+
+  const [screen, setScreen] = useState(hasSession ? SCREEN.CHAT : SCREEN.SETUP);
+  const [bootDone, setBootDone] = useState(hasSession);
+  const [bootLines, setBootLines] = useState(hasSession ? BOOT_SEQUENCE : []);
   const [windowFocused, setWindowFocused] = useState(true);
 
   useEffect(() => {
+    if (hasSession) return;
     let i = 0;
     const iv = setInterval(() => {
       if (i < BOOT_SEQUENCE.length) {
@@ -97,7 +104,7 @@ export default function ChatApp() {
       }
     }, 160);
     return () => clearInterval(iv);
-  }, []);
+  }, [hasSession]);
 
   // ── Screenshot deterrent: blur when window loses focus ──────────
   useEffect(() => {
@@ -275,18 +282,17 @@ function ChatScreen({ onLeave }) {
       (snap) => setOnlineUsers(snap.docs.map((d) => d.data().username))
     );
 
-    const cleanup = async () => {
-      await deleteDoc(presenceRef);
-      // After removing ourselves, check if room is now empty
-      await deleteRoomIfEmpty(roomId);
+    // Warn user before leaving/refreshing — do NOT auto-remove presence
+    const handleBeforeUnload = (e) => {
+      e.preventDefault();
+      e.returnValue = ""; // triggers browser's native "Leave site?" dialog
     };
-
-    window.addEventListener("beforeunload", cleanup);
+    window.addEventListener("beforeunload", handleBeforeUnload);
 
     return () => {
       unsub();
-      cleanup();
-      window.removeEventListener("beforeunload", cleanup);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      // Do NOT delete presence here — user may just be refreshing
     };
   }, [roomId, userId, username]);
 
@@ -339,6 +345,10 @@ function ChatScreen({ onLeave }) {
     const presenceRef = doc(db, "rooms", roomId, "presence", userId);
     await deleteDoc(presenceRef);
     await deleteRoomIfEmpty(roomId);
+    // Clear session so refresh goes to setup, not back to this room
+    sessionStorage.removeItem("tc_username");
+    sessionStorage.removeItem("tc_roomId");
+    sessionStorage.removeItem("tc_userId");
     onLeave();
   };
 
