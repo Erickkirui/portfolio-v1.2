@@ -9,7 +9,8 @@ import ChatApp from './Components/Terminalchat/ChatApp';
 function Layout() {
   const location = useLocation();
 
-  const hideLayout = location.pathname === "/se-chat";
+  // Hide layout for both /se-chat and /se-chat/:roomCode
+  const hideLayout = location.pathname.startsWith("/se-chat");
 
   return (
     <>

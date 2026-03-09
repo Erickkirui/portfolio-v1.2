@@ -289,7 +289,8 @@ function ChatScreen({ onLeave, navigate }) {
   const [messages, setMessages]       = useState([]);
   const [input, setInput]             = useState("");
   const [onlineUsers, setOnlineUsers] = useState([]); // [{username, userId}]
-  const [copied, setCopied]           = useState(false);
+  const [copiedLink, setCopiedLink]   = useState(false);
+  const [copiedCode, setCopiedCode]   = useState(false);
   const [kicked, setKicked]           = useState(false);
   const [roomDeleted, setRoomDeleted] = useState(false);
   const bottomRef = useRef(null);
@@ -401,11 +402,17 @@ function ChatScreen({ onLeave, navigate }) {
     }
   };
 
-  const copyRoom = () => {
+  const copyLink = () => {
     const roomUrl = `${window.location.origin}/se-chat/${roomId}`;
     navigator.clipboard.writeText(roomUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 1500);
+  };
+
+  const copyCode = () => {
+    navigator.clipboard.writeText(roomId);
+    setCopiedCode(true);
+    setTimeout(() => setCopiedCode(false), 1500);
   };
 
   const leaveRoom = async () => {
@@ -460,8 +467,11 @@ function ChatScreen({ onLeave, navigate }) {
       <div style={s.roomBar}>
         <span style={s.roomLabel}>ROOM:</span>
         <span style={s.roomId}>{roomId}</span>
-        <button style={s.copyBtn} onClick={copyRoom}>
-          {copied ? "[COPIED!]" : "[COPY LINK]"}
+        <button style={s.copyBtn} onClick={copyLink}>
+          {copiedLink ? "[COPIED!]" : "[COPY LINK]"}
+        </button>
+        <button style={s.copyBtn} onClick={copyCode}>
+          {copiedCode ? "[COPIED!]" : "[COPY CODE]"}
         </button>
         <span style={s.onlineLabel}>
           ONLINE: {onlineUsers.map((u) => u.username).join(", ") || "..."}
