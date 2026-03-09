@@ -1,5 +1,33 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { initializeApp } from "firebase/app";
+import {
+  getFirestore,
+  collection,
+  addDoc,
+  onSnapshot,
+  query,
+  orderBy,
+  serverTimestamp,
+  doc,
+  setDoc,
+  deleteDoc,
+} from "firebase/firestore";
 
+// ── Firebase config ──────────────────────────────────────────────
+const firebaseConfig = {
+  apiKey: "AIzaSyA7n18krwD0_f0c8tJgymSBkgo34Oa8zQA",
+  authDomain: "terminal-chat-d8787.firebaseapp.com",
+  projectId: "terminal-chat-d8787",
+  storageBucket: "terminal-chat-d8787.firebasestorage.app",
+  messagingSenderId: "837729657835",
+  appId: "1:837729657835:web:00484e1897a8cc49a56fae",
+  measurementId: "G-QE75Q0DMY0",
+};
+
+const firebaseApp = initializeApp(firebaseConfig);
+const db = getFirestore(firebaseApp);
+
+// ── Helpers ──────────────────────────────────────────────────────
 const formatTime = () =>
   new Date().toLocaleTimeString([], {
     hour: "2-digit",
@@ -8,143 +36,243 @@ const formatTime = () =>
     hour12: false,
   });
 
-const SESSION_ID = Math.random().toString(36).slice(2, 10).toUpperCase();
+const generateRoomId = () =>
+  Math.random().toString(36).slice(2, 8).toUpperCase();
 
-// Moved outside component to fix ESLint react-hooks/exhaustive-deps warning
+const generateUserId = () =>
+  Math.random().toString(36).slice(2, 10).toUpperCase();
+
+const SESSION_USER_ID = generateUserId();
+
+// ── Screens ──────────────────────────────────────────────────────
+const SCREEN = { SETUP: "SETUP", CHAT: "CHAT" };
+
+// ── Boot lines ───────────────────────────────────────────────────
 const BOOT_SEQUENCE = [
-  "INITIALIZING CLAUDE TERMINAL...",
-  "LOADING LANGUAGE MODEL.............. OK",
-  "ESTABLISHING API CONNECTION......... OK",
-  "MEMORY MODE: EPHEMERAL (NO STORAGE). OK",
-  "ENCRYPTION: NONE (LOCAL SESSION).... OK",
-  "────────────────────────────────────────",
+  "INITIALIZING TERMINAL CHAT...",
+  "LOADING FIREBASE SDK................ OK",
+  "ESTABLISHING FIRESTORE CONNECTION... OK",
+  "REAL-TIME SYNC...................... ENABLED",
+  "──────────────────────────────────────────",
   "READY.",
 ];
 
 export default function ChatApp() {
-  const [messages, setMessages] = useState([
-    {
-      id: 1,
-      role: "assistant",
-      content:
-        "CLAUDE AI TERMINAL v2.4.1 — SESSION " +
-        SESSION_ID +
-        "\nAll messages are ephemeral. No data is stored or persisted.\nType your query and press ENTER to transmit.\n\nSystem ready.",
-      time: formatTime(),
-    },
-  ]);
-  const [input, setInput] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
-  const [streamingText, setStreamingText] = useState("");
+  const [screen, setScreen] = useState(SCREEN.SETUP);
   const [bootDone, setBootDone] = useState(false);
   const [bootLines, setBootLines] = useState([]);
-  const bottomRef = useRef(null);
-  const inputRef = useRef(null);
-  const streamingRef = useRef("");
 
   useEffect(() => {
     let i = 0;
-    const interval = setInterval(() => {
+    const iv = setInterval(() => {
       if (i < BOOT_SEQUENCE.length) {
-        setBootLines((prev) => [...prev, BOOT_SEQUENCE[i]]);
+        setBootLines((p) => [...p, BOOT_SEQUENCE[i]]);
         i++;
       } else {
-        clearInterval(interval);
-        setTimeout(() => setBootDone(true), 400);
+        clearInterval(iv);
+        setTimeout(() => setBootDone(true), 350);
       }
-    }, 180);
-    return () => clearInterval(interval);
-  }, []); // no warning now — BOOT_SEQUENCE is a module-level constant
+    }, 160);
+    return () => clearInterval(iv);
+  }, []);
 
+  return (
+    <div style={s.root}>
+      <style>{css}</style>
+      <TitleBar />
+      <div style={s.body}>
+        {!bootDone ? (
+          <Boot lines={bootLines} />
+        ) : screen === SCREEN.SETUP ? (
+          <SetupScreen onEnter={setScreen} />
+        ) : (
+          <ChatScreen onLeave={() => setScreen(SCREEN.SETUP)} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Boot ─────────────────────────────────────────────────────────
+function Boot({ lines }) {
+  return (
+    <div style={s.boot}>
+      {lines.map((l, i) => (
+        <div key={i} className="fade-in" style={{ animationDelay: `${i * 0.04}s`, opacity: 0 }}>
+          {l}
+        </div>
+      ))}
+      <span className="blink-cursor">█</span>
+    </div>
+  );
+}
+
+// ── Setup screen ─────────────────────────────────────────────────
+function SetupScreen({ onEnter }) {
+  const [username, setUsername] = useState("");
+  const [roomInput, setRoomInput] = useState("");
+  const [mode, setMode] = useState(null); // "create" | "join"
+  const [error, setError] = useState("");
+  const inputRef = useRef(null);
+
+  useEffect(() => { inputRef.current?.focus(); }, [mode]);
+
+  const handleCreate = () => {
+    if (!username.trim()) { setError("USERNAME REQUIRED"); return; }
+    const id = generateRoomId();
+    sessionStorage.setItem("tc_username", username.trim().toUpperCase());
+    sessionStorage.setItem("tc_roomId", id);
+    sessionStorage.setItem("tc_userId", SESSION_USER_ID);
+    onEnter(SCREEN.CHAT);
+  };
+
+  const handleJoin = () => {
+    if (!username.trim()) { setError("USERNAME REQUIRED"); return; }
+    if (!roomInput.trim()) { setError("ROOM ID REQUIRED"); return; }
+    sessionStorage.setItem("tc_username", username.trim().toUpperCase());
+    sessionStorage.setItem("tc_roomId", roomInput.trim().toUpperCase());
+    sessionStorage.setItem("tc_userId", SESSION_USER_ID);
+    onEnter(SCREEN.CHAT);
+  };
+
+  return (
+    <div style={s.setup} className="fade-in">
+      <div style={s.setupTitle}>TERMINAL CHAT</div>
+      <div style={s.setupSub}>end-to-end ephemeral · powered by firebase</div>
+      <div style={s.divider}>{"─".repeat(46)}</div>
+
+      {/* Username */}
+      <div style={s.field}>
+        <span style={s.label}>SET USERNAME</span>
+        <div style={s.inputRow2}>
+          <span style={s.arrow}>&gt;</span>
+          <input
+            ref={mode === null ? inputRef : undefined}
+            style={s.setupInput}
+            value={username}
+            onChange={(e) => { setUsername(e.target.value); setError(""); }}
+            onKeyDown={(e) => e.key === "Enter" && mode && (mode === "create" ? handleCreate() : handleJoin())}
+            placeholder="e.g. GHOST"
+            autoComplete="off"
+            spellCheck="false"
+            maxLength={16}
+          />
+        </div>
+      </div>
+
+      {/* Mode picker */}
+      {!mode && (
+        <div style={s.modeRow}>
+          <button style={s.modeBtn} onClick={() => setMode("create")}>[CREATE ROOM]</button>
+          <span style={s.modeSep}>or</span>
+          <button style={s.modeBtn} onClick={() => setMode("join")}>[JOIN ROOM]</button>
+        </div>
+      )}
+
+      {/* Create */}
+      {mode === "create" && (
+        <div style={s.field} className="fade-in">
+          <div style={s.setupHint}>A room code will be generated for you to share.</div>
+          <button style={s.actionBtn} onClick={handleCreate}>[CREATE & ENTER]</button>
+          <button style={s.backBtn} onClick={() => setMode(null)}>[BACK]</button>
+        </div>
+      )}
+
+      {/* Join */}
+      {mode === "join" && (
+        <div style={s.field} className="fade-in">
+          <span style={s.label}>ROOM CODE</span>
+          <div style={s.inputRow2}>
+            <span style={s.arrow}>&gt;</span>
+            <input
+              ref={inputRef}
+              style={s.setupInput}
+              value={roomInput}
+              onChange={(e) => { setRoomInput(e.target.value.toUpperCase()); setError(""); }}
+              onKeyDown={(e) => e.key === "Enter" && handleJoin()}
+              placeholder="e.g. AB12CD"
+              autoComplete="off"
+              spellCheck="false"
+              maxLength={8}
+            />
+          </div>
+          <button style={s.actionBtn} onClick={handleJoin}>[JOIN ROOM]</button>
+          <button style={s.backBtn} onClick={() => setMode(null)}>[BACK]</button>
+        </div>
+      )}
+
+      {error && <div style={s.error}>! {error}</div>}
+    </div>
+  );
+}
+
+// ── Chat screen ──────────────────────────────────────────────────
+function ChatScreen({ onLeave }) {
+  const username = sessionStorage.getItem("tc_username") || "ANON";
+  const roomId = sessionStorage.getItem("tc_roomId") || "UNKNOWN";
+  const userId = sessionStorage.getItem("tc_userId") || SESSION_USER_ID;
+
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState("");
+  const [onlineUsers, setOnlineUsers] = useState([]);
+  const [copied, setCopied] = useState(false);
+  const bottomRef = useRef(null);
+  const inputRef = useRef(null);
+
+  // ── Presence ────────────────────────────────────────────────
+  useEffect(() => {
+    const presenceRef = doc(db, "rooms", roomId, "presence", userId);
+    setDoc(presenceRef, { username, joinedAt: serverTimestamp() });
+
+    const unsub = onSnapshot(
+      collection(db, "rooms", roomId, "presence"),
+      (snap) => setOnlineUsers(snap.docs.map((d) => d.data().username))
+    );
+
+    const handleUnload = () => deleteDoc(presenceRef);
+    window.addEventListener("beforeunload", handleUnload);
+
+    return () => {
+      unsub();
+      deleteDoc(presenceRef);
+      window.removeEventListener("beforeunload", handleUnload);
+    };
+  }, [roomId, userId, username]);
+
+  // ── Messages listener ────────────────────────────────────────
+  useEffect(() => {
+    const q = query(
+      collection(db, "rooms", roomId, "messages"),
+      orderBy("timestamp", "asc")
+    );
+    const unsub = onSnapshot(q, (snap) => {
+      setMessages(
+        snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+      );
+    });
+    return () => unsub();
+  }, [roomId]);
+
+  // ── Auto scroll ──────────────────────────────────────────────
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, streamingText, bootLines]);
+  }, [messages]);
 
-  useEffect(() => {
-    if (bootDone) inputRef.current?.focus();
-  }, [bootDone]);
+  useEffect(() => { inputRef.current?.focus(); }, []);
 
-  const sendMessage = async () => {
+  // ── Send ─────────────────────────────────────────────────────
+  const sendMessage = useCallback(async () => {
     const text = input.trim();
-    if (!text || isTyping) return;
-
-    const userMsg = { id: Date.now(), role: "user", content: text, time: formatTime() };
-    const updatedMessages = [...messages, userMsg];
-    setMessages(updatedMessages);
+    if (!text) return;
     setInput("");
-    setIsTyping(true);
-    setStreamingText("");
-    streamingRef.current = "";
-
-    try {
-      const apiMessages = updatedMessages.map((m) => ({ role: m.role, content: m.content }));
-
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "anthropic-dangerous-direct-browser-access": "true",
-        },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1000,
-          stream: true,
-          system:
-            "You are a terminal AI assistant. Respond in a clear, direct, slightly technical tone. No markdown formatting — plain text only. No asterisks, no headers. Short to medium responses unless detail is needed.",
-          messages: apiMessages,
-        }),
-      });
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value);
-        const lines = chunk.split("\n").filter((l) => l.trim());
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            const data = line.slice(6);
-            if (data === "[DONE]") continue;
-            try {
-              const parsed = JSON.parse(data);
-              if (parsed.type === "content_block_delta" && parsed.delta?.text) {
-                streamingRef.current += parsed.delta.text;
-                setStreamingText(streamingRef.current);
-              }
-            } catch {}
-          }
-        }
-      }
-
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now(),
-          role: "assistant",
-          content: streamingRef.current,
-          time: formatTime(),
-        },
-      ]);
-      setStreamingText("");
-    } catch (err) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now(),
-          role: "assistant",
-          content: "ERROR: Connection failed. Check API access and retry.",
-          time: formatTime(),
-          error: true,
-        },
-      ]);
-    } finally {
-      setIsTyping(false);
-      streamingRef.current = "";
-      inputRef.current?.focus();
-    }
-  };
+    await addDoc(collection(db, "rooms", roomId, "messages"), {
+      text,
+      username,
+      userId,
+      timestamp: serverTimestamp(),
+      localTime: formatTime(),
+    });
+  }, [input, roomId, username, userId]);
 
   const handleKey = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -153,186 +281,140 @@ export default function ChatApp() {
     }
   };
 
-  return (
-    <div style={s.root}>
-      <style>{css}</style>
+  const copyRoom = () => {
+    navigator.clipboard.writeText(roomId);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
 
-      {/* Title bar */}
-      <div style={s.titleBar}>
-        <div style={s.titleDots}>
-          <span style={{ ...s.dot, background: "#ff5f57" }} />
-          <span style={{ ...s.dot, background: "#febc2e" }} />
-          <span style={{ ...s.dot, background: "#28c840" }} />
+  const leaveRoom = async () => {
+    await deleteDoc(doc(db, "rooms", roomId, "presence", userId));
+    onLeave();
+  };
+
+  return (
+    <>
+      {/* Room info bar */}
+      <div style={s.roomBar}>
+        <span style={s.roomLabel}>ROOM:</span>
+        <span style={s.roomId}>{roomId}</span>
+        <button style={s.copyBtn} onClick={copyRoom}>
+          {copied ? "[COPIED!]" : "[COPY CODE]"}
+        </button>
+        <span style={s.onlineLabel}>
+          ONLINE: {onlineUsers.join(", ") || "..."}
+        </span>
+        <button style={s.leaveBtn} onClick={leaveRoom}>[LEAVE]</button>
+      </div>
+
+      {/* Messages */}
+      <div style={s.messages}>
+        <div style={s.systemMsg}>
+          ── joined as <span style={s.ownName}>{username}</span> · room{" "}
+          <span style={s.roomCode}>{roomId}</span> · share the code with your friend ──
         </div>
-        <span style={s.titleText}>claude-terminal — session:{SESSION_ID}</span>
-        <span style={s.titleRight}>NO STORAGE</span>
-      </div>
 
-      {/* Body */}
-      <div style={s.body}>
-        {!bootDone ? (
-          <div style={s.boot}>
-            {bootLines.map((line, i) => (
-              <div
-                key={i}
-                className="fade-in"
-                style={{ ...s.bootLine, animationDelay: `${i * 0.05}s` }}
-              >
-                {line}
+        {messages.map((msg) => {
+          const isOwn = msg.userId === userId;
+          return (
+            <div key={msg.id} style={s.msgBlock} className="line-in">
+              <div style={s.prompt}>
+                <span style={isOwn ? s.ownTag : s.otherTag}>
+                  {msg.username}
+                </span>
+                <span style={s.promptArrow}>&gt;</span>
+                <span style={s.msgTime}>[{msg.localTime || "??:??:??"}]</span>
               </div>
-            ))}
-            <span className="blink-cursor">█</span>
-          </div>
-        ) : (
-          <>
-            {/* Messages */}
-            <div style={s.messages}>
-              {messages.map((msg) => (
-                <TerminalMessage key={msg.id} msg={msg} />
-              ))}
-
-              {isTyping && (
-                <div style={s.msgBlock}>
-                  <div style={s.prompt}>
-                    <span style={s.sysTag}>SYS</span>
-                    <span style={s.promptArrow}>&gt;</span>
-                  </div>
-                  <div style={s.msgContent}>
-                    {streamingText ? (
-                      <>
-                        {streamingText}
-                        <span className="blink-cursor" style={s.inlineCursor}>
-                          █
-                        </span>
-                      </>
-                    ) : (
-                      <span style={s.processing}>
-                        PROCESSING<span className="ellipsis-anim" />
-                      </span>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              <div ref={bottomRef} />
+              <div style={{ ...s.msgContent, color: isOwn ? "#ffffff" : "#c8c8c8" }}>
+                {msg.text}
+              </div>
+              <div style={s.dividerLine}>{"─".repeat(60)}</div>
             </div>
+          );
+        })}
 
-            {/* Input */}
-            <div style={s.inputRow}>
-              <span style={s.inputPrompt}>
-                <span style={s.inputUser}>USR</span>
-                <span style={s.inputArrow}>&gt;</span>
-              </span>
-              <input
-                ref={inputRef}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKey}
-                style={s.input}
-                placeholder={isTyping ? "AWAITING RESPONSE..." : "ENTER COMMAND..."}
-                disabled={isTyping}
-                autoComplete="off"
-                spellCheck="false"
-              />
-              <button
-                onClick={sendMessage}
-                disabled={!input.trim() || isTyping}
-                style={{
-                  ...s.sendBtn,
-                  opacity: !input.trim() || isTyping ? 0.3 : 1,
-                  cursor: !input.trim() || isTyping ? "default" : "pointer",
-                }}
-              >
-                [SEND]
-              </button>
-            </div>
-
-            {/* Status bar */}
-            <div style={s.statusBar}>
-              <span>
-                STATUS:{" "}
-                {isTyping ? (
-                  <span style={s.statusActive}>TRANSMITTING</span>
-                ) : (
-                  <span style={s.statusReady}>READY</span>
-                )}
-              </span>
-              <span>MSGS: {messages.length}</span>
-              <span>MEM: EPHEMERAL</span>
-              <span>{new Date().toISOString().slice(0, 19).replace("T", " ")}</span>
-            </div>
-          </>
-        )}
+        <div ref={bottomRef} />
       </div>
-    </div>
+
+      {/* Input */}
+      <div style={s.inputRow}>
+        <span style={s.inputPrompt}>
+          <span style={s.inputUser}>{username}</span>
+          <span style={s.inputArrow}>&gt;</span>
+        </span>
+        <input
+          ref={inputRef}
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={handleKey}
+          style={s.input}
+          placeholder="TYPE MESSAGE..."
+          autoComplete="off"
+          spellCheck="false"
+        />
+        <button
+          onClick={sendMessage}
+          disabled={!input.trim()}
+          style={{ ...s.sendBtn, opacity: !input.trim() ? 0.3 : 1 }}
+        >
+          [SEND]
+        </button>
+      </div>
+
+      {/* Status bar */}
+      <div style={s.statusBar}>
+        <span>STATUS: <span style={s.statusReady}>CONNECTED</span></span>
+        <span>MSGS: {messages.length}</span>
+        <span>USERS: {onlineUsers.length}</span>
+        <span>{new Date().toISOString().slice(0, 19).replace("T", " ")}</span>
+      </div>
+    </>
   );
 }
 
-function TerminalMessage({ msg }) {
-  const isUser = msg.role === "user";
+// ── Title bar ────────────────────────────────────────────────────
+function TitleBar() {
   return (
-    <div style={s.msgBlock} className="line-in">
-      <div style={s.prompt}>
-        <span style={isUser ? s.userTag : s.sysTag}>{isUser ? "USR" : "SYS"}</span>
-        <span style={s.promptArrow}>&gt;</span>
-        <span style={s.msgTime}>[{msg.time}]</span>
+    <div style={s.titleBar}>
+      <div style={s.titleDots}>
+        <span style={{ ...s.dot, background: "#ff5f57" }} />
+        <span style={{ ...s.dot, background: "#febc2e" }} />
+        <span style={{ ...s.dot, background: "#28c840" }} />
       </div>
-      <div
-        style={{
-          ...s.msgContent,
-          color: msg.error ? "#ff5555" : isUser ? "#ffffff" : "#c8c8c8",
-        }}
-      >
-        {msg.content}
-      </div>
-      <div style={s.divider}>{"─".repeat(60)}</div>
+      <span style={s.titleText}>terminal-chat · firebase realtime</span>
+      <span style={s.titleRight}>NO AI</span>
     </div>
   );
 }
 
+// ── CSS ──────────────────────────────────────────────────────────
 const css = `
   @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
-
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
   @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(4px); }
+    from { opacity: 0; transform: translateY(5px); }
     to   { opacity: 1; transform: translateY(0); }
   }
-  @keyframes lineIn {
-    from { opacity: 0; }
-    to   { opacity: 1; }
-  }
-  @keyframes blink {
-    0%, 49% { opacity: 1; }
-    50%, 100% { opacity: 0; }
-  }
+  @keyframes lineIn { from { opacity:0; } to { opacity:1; } }
+  @keyframes blink  { 0%,49%{opacity:1;} 50%,100%{opacity:0;} }
 
-  .fade-in { animation: fadeIn 0.25s ease both; }
-  .line-in  { animation: lineIn 0.15s ease both; }
-  .blink-cursor { animation: blink 1s step-end infinite; color: #ffffff; }
-
-  .ellipsis-anim { display: inline-block; }
-  .ellipsis-anim::after {
-    content: '';
-    animation: ellipsisAnim 1.2s steps(4, end) infinite;
-  }
-  @keyframes ellipsisAnim {
-    0%   { content: ''; }
-    25%  { content: '.'; }
-    50%  { content: '..'; }
-    75%  { content: '...'; }
-  }
+  .fade-in       { animation: fadeIn 0.3s ease both; }
+  .line-in       { animation: lineIn 0.15s ease both; }
+  .blink-cursor  { animation: blink 1s step-end infinite; color:#fff; }
 
   ::-webkit-scrollbar { width: 5px; }
   ::-webkit-scrollbar-track { background: #0a0a0a; }
-  ::-webkit-scrollbar-thumb { background: #333; border-radius: 0; }
+  ::-webkit-scrollbar-thumb { background: #2a2a2a; }
 
-  input::placeholder { color: #3a3a3a; font-family: 'Share Tech Mono', monospace; }
+  input::placeholder { color: #333; font-family: 'Share Tech Mono', monospace; }
   input:focus { outline: none; }
-  button:hover:not(:disabled) { background: #1a1a1a !important; color: #ffffff !important; border-color: #555 !important; }
+  button { font-family: 'Share Tech Mono', monospace; cursor: pointer; }
+  button:hover:not(:disabled) { background: #1a1a1a !important; color: #fff !important; border-color: #555 !important; }
+  button:disabled { cursor: default; }
 `;
 
+// ── Styles ───────────────────────────────────────────────────────
 const s = {
   root: {
     fontFamily: "'Share Tech Mono', monospace",
@@ -347,113 +429,115 @@ const s = {
     borderLeft: "1px solid #1e1e1e",
     borderRight: "1px solid #1e1e1e",
   },
+  body: { flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" },
+
+  // title
   titleBar: {
-    display: "flex",
-    alignItems: "center",
-    gap: 12,
-    padding: "8px 16px",
-    background: "#111111",
-    borderBottom: "1px solid #222",
-    flexShrink: 0,
+    display: "flex", alignItems: "center", gap: 12,
+    padding: "8px 16px", background: "#111",
+    borderBottom: "1px solid #222", flexShrink: 0,
   },
   titleDots: { display: "flex", gap: 6 },
   dot: { width: 11, height: 11, borderRadius: "50%", display: "block" },
-  titleText: {
-    flex: 1,
-    fontSize: 11,
-    color: "#444",
-    letterSpacing: "0.1em",
-    textAlign: "center",
-  },
+  titleText: { flex: 1, fontSize: 11, color: "#444", letterSpacing: "0.1em", textAlign: "center" },
   titleRight: { fontSize: 11, color: "#2a2a2a", letterSpacing: "0.08em" },
-  body: { flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" },
-  boot: {
-    padding: "24px 28px",
-    lineHeight: 2,
-    fontSize: 13,
-    letterSpacing: "0.05em",
-    color: "#555",
+
+  // boot
+  boot: { padding: "24px 28px", lineHeight: 2.1, fontSize: 13, letterSpacing: "0.05em", color: "#555" },
+
+  // setup
+  setup: { padding: "32px 28px", display: "flex", flexDirection: "column", gap: 18 },
+  setupTitle: { fontSize: 22, color: "#fff", letterSpacing: "0.2em" },
+  setupSub: { fontSize: 11, color: "#333", letterSpacing: "0.1em" },
+  divider: { color: "#1e1e1e", fontSize: 12, userSelect: "none" },
+  field: { display: "flex", flexDirection: "column", gap: 8 },
+  label: { fontSize: 11, color: "#444", letterSpacing: "0.12em" },
+  inputRow2: { display: "flex", alignItems: "center", gap: 8 },
+  arrow: { color: "#333", fontSize: 14 },
+  setupInput: {
+    background: "transparent", border: "none", borderBottom: "1px solid #2a2a2a",
+    color: "#fff", fontSize: 15, letterSpacing: "0.08em", padding: "4px 0",
+    fontFamily: "'Share Tech Mono', monospace", width: "100%", caretColor: "#fff",
   },
-  bootLine: { opacity: 0 },
+  modeRow: { display: "flex", alignItems: "center", gap: 16, marginTop: 4 },
+  modeBtn: {
+    background: "transparent", border: "1px solid #2a2a2a", color: "#555",
+    fontSize: 12, letterSpacing: "0.1em", padding: "7px 16px", transition: "all 0.15s",
+  },
+  modeSep: { color: "#2a2a2a", fontSize: 12 },
+  actionBtn: {
+    background: "#fff", border: "none", color: "#000",
+    fontSize: 12, letterSpacing: "0.12em", padding: "8px 20px",
+    transition: "all 0.15s", alignSelf: "flex-start", marginTop: 4,
+  },
+  backBtn: {
+    background: "transparent", border: "1px solid #1e1e1e", color: "#333",
+    fontSize: 11, letterSpacing: "0.1em", padding: "5px 14px",
+    alignSelf: "flex-start", transition: "all 0.15s",
+  },
+  setupHint: { fontSize: 11, color: "#333", letterSpacing: "0.06em" },
+  error: { color: "#ff5555", fontSize: 12, letterSpacing: "0.1em" },
+
+  // room bar
+  roomBar: {
+    display: "flex", alignItems: "center", gap: 10,
+    padding: "7px 20px", background: "#0d0d0d",
+    borderBottom: "1px solid #1e1e1e", flexShrink: 0, flexWrap: "wrap",
+  },
+  roomLabel: { fontSize: 10, color: "#333", letterSpacing: "0.1em" },
+  roomId: { fontSize: 13, color: "#fff", letterSpacing: "0.15em" },
+  copyBtn: {
+    background: "transparent", border: "1px solid #2a2a2a", color: "#555",
+    fontSize: 10, letterSpacing: "0.08em", padding: "3px 8px", transition: "all 0.15s",
+  },
+  onlineLabel: { fontSize: 10, color: "#3a3a3a", letterSpacing: "0.08em", flex: 1 },
+  leaveBtn: {
+    background: "transparent", border: "1px solid #2a2a2a", color: "#555",
+    fontSize: 10, letterSpacing: "0.08em", padding: "3px 8px", transition: "all 0.15s",
+  },
+
+  // messages
   messages: {
-    flex: 1,
-    overflowY: "auto",
-    padding: "16px 20px",
-    display: "flex",
-    flexDirection: "column",
+    flex: 1, overflowY: "auto", padding: "16px 20px",
+    display: "flex", flexDirection: "column",
   },
-  msgBlock: { marginBottom: 14 },
-  prompt: {
-    display: "flex",
-    alignItems: "center",
-    gap: 6,
-    marginBottom: 4,
-    fontSize: 11,
-    letterSpacing: "0.08em",
-  },
-  promptArrow: { color: "#444" },
-  userTag: { color: "#888", fontSize: 11 },
-  sysTag: { color: "#555", fontSize: 11 },
-  msgTime: { color: "#2e2e2e", fontSize: 10 },
-  msgContent: {
-    fontSize: 14,
-    lineHeight: 1.75,
-    paddingLeft: 8,
-    whiteSpace: "pre-wrap",
-    wordBreak: "break-word",
-    letterSpacing: "0.02em",
-  },
-  divider: { color: "#1a1a1a", fontSize: 11, marginTop: 10, userSelect: "none" },
-  processing: { color: "#555", fontSize: 13, letterSpacing: "0.1em" },
-  inlineCursor: { marginLeft: 2, fontSize: 14 },
+  systemMsg: { fontSize: 11, color: "#2e2e2e", marginBottom: 16, letterSpacing: "0.04em" },
+  msgBlock: { marginBottom: 12 },
+  prompt: { display: "flex", alignItems: "center", gap: 6, marginBottom: 4, fontSize: 11, letterSpacing: "0.08em" },
+  ownTag: { color: "#ffffff", fontSize: 11 },
+  otherTag: { color: "#666", fontSize: 11 },
+  promptArrow: { color: "#333" },
+  msgTime: { color: "#2a2a2a", fontSize: 10 },
+  msgContent: { fontSize: 14, lineHeight: 1.75, paddingLeft: 8, whiteSpace: "pre-wrap", wordBreak: "break-word", letterSpacing: "0.02em" },
+  dividerLine: { color: "#161616", fontSize: 11, marginTop: 10, userSelect: "none" },
+  ownName: { color: "#fff" },
+  roomCode: { color: "#888" },
+
+  // input
   inputRow: {
-    display: "flex",
-    alignItems: "center",
-    padding: "10px 20px",
-    borderTop: "1px solid #1e1e1e",
-    background: "#0d0d0d",
-    flexShrink: 0,
-    gap: 8,
+    display: "flex", alignItems: "center", gap: 8,
+    padding: "10px 20px", borderTop: "1px solid #1e1e1e",
+    background: "#0d0d0d", flexShrink: 0,
   },
-  inputPrompt: {
-    display: "flex",
-    alignItems: "center",
-    gap: 4,
-    userSelect: "none",
-  },
+  inputPrompt: { display: "flex", alignItems: "center", gap: 4, userSelect: "none" },
   inputUser: { color: "#666", fontSize: 11, letterSpacing: "0.08em" },
-  inputArrow: { color: "#444", fontSize: 14 },
+  inputArrow: { color: "#333", fontSize: 14 },
   input: {
-    flex: 1,
-    background: "transparent",
-    border: "none",
-    color: "#ffffff",
-    fontSize: 14,
-    letterSpacing: "0.04em",
-    caretColor: "#ffffff",
-    fontFamily: "'Share Tech Mono', monospace",
+    flex: 1, background: "transparent", border: "none",
+    color: "#fff", fontSize: 14, letterSpacing: "0.04em",
+    caretColor: "#fff", fontFamily: "'Share Tech Mono', monospace",
   },
   sendBtn: {
-    background: "transparent",
-    border: "1px solid #2a2a2a",
-    color: "#444",
-    fontSize: 11,
-    letterSpacing: "0.1em",
-    padding: "5px 12px",
-    transition: "all 0.15s",
-    flexShrink: 0,
+    background: "transparent", border: "1px solid #2a2a2a", color: "#555",
+    fontSize: 11, letterSpacing: "0.1em", padding: "5px 12px", transition: "all 0.15s", flexShrink: 0,
   },
+
+  // status
   statusBar: {
-    display: "flex",
-    justifyContent: "space-between",
-    padding: "5px 20px",
-    fontSize: 10,
-    color: "#2a2a2a",
-    borderTop: "1px solid #161616",
-    letterSpacing: "0.08em",
-    background: "#080808",
-    flexShrink: 0,
+    display: "flex", justifyContent: "space-between",
+    padding: "5px 20px", fontSize: 10, color: "#2a2a2a",
+    borderTop: "1px solid #161616", letterSpacing: "0.08em",
+    background: "#080808", flexShrink: 0,
   },
   statusReady: { color: "#3a3a3a" },
-  statusActive: { color: "#aaaaaa", animation: "blink 1s step-end infinite" },
 };
