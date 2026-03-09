@@ -11,6 +11,7 @@ import {
   doc,
   setDoc,
   deleteDoc,
+  getDocs,
 } from "firebase/firestore";
 
 // ── Firebase config ──────────────────────────────────────────────
@@ -44,6 +45,26 @@ const generateUserId = () =>
 
 const SESSION_USER_ID = generateUserId();
 
+// ── Delete entire room (messages + presence) when empty ──────────
+async function deleteRoomIfEmpty(roomId) {
+  const presenceSnap = await getDocs(
+    collection(db, "rooms", roomId, "presence")
+  );
+  if (presenceSnap.size > 0) return; // still users online, abort
+
+  // Delete all messages
+  const messagesSnap = await getDocs(
+    collection(db, "rooms", roomId, "messages")
+  );
+  const deletions = [];
+  messagesSnap.forEach((d) => deletions.push(deleteDoc(d.ref)));
+  presenceSnap.forEach((d) => deletions.push(deleteDoc(d.ref)));
+  await Promise.all(deletions);
+
+  // Delete the room doc itself if it exists
+  await deleteDoc(doc(db, "rooms", roomId));
+}
+
 // ── Screens ──────────────────────────────────────────────────────
 const SCREEN = { SETUP: "SETUP", CHAT: "CHAT" };
 
@@ -53,6 +74,7 @@ const BOOT_SEQUENCE = [
   "LOADING FIREBASE SDK................ OK",
   "ESTABLISHING FIRESTORE CONNECTION... OK",
   "REAL-TIME SYNC...................... ENABLED",
+  "SCREENSHOT DETERRENT................ ACTIVE",
   "──────────────────────────────────────────",
   "READY.",
 ];
@@ -61,6 +83,7 @@ export default function ChatApp() {
   const [screen, setScreen] = useState(SCREEN.SETUP);
   const [bootDone, setBootDone] = useState(false);
   const [bootLines, setBootLines] = useState([]);
+  const [windowFocused, setWindowFocused] = useState(true);
 
   useEffect(() => {
     let i = 0;
@@ -76,11 +99,38 @@ export default function ChatApp() {
     return () => clearInterval(iv);
   }, []);
 
+  // ── Screenshot deterrent: blur when window loses focus ──────────
+  useEffect(() => {
+    const onBlur  = () => setWindowFocused(false);
+    const onFocus = () => setWindowFocused(true);
+    window.addEventListener("blur",  onBlur);
+    window.addEventListener("focus", onFocus);
+    return () => {
+      window.removeEventListener("blur",  onBlur);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, []);
+
+  // ── Block right-click ────────────────────────────────────────────
+  useEffect(() => {
+    const block = (e) => e.preventDefault();
+    document.addEventListener("contextmenu", block);
+    return () => document.removeEventListener("contextmenu", block);
+  }, []);
+
   return (
     <div style={s.root}>
       <style>{css}</style>
       <TitleBar />
-      <div style={s.body}>
+
+      {/* Blur overlay when window not focused */}
+      {!windowFocused && (
+        <div style={s.blurOverlay}>
+          <span style={s.blurText}>⚠ WINDOW UNFOCUSED — CONTENT HIDDEN</span>
+        </div>
+      )}
+
+      <div style={{ ...s.body, filter: windowFocused ? "none" : "blur(18px)", transition: "filter 0.2s" }}>
         {!bootDone ? (
           <Boot lines={bootLines} />
         ) : screen === SCREEN.SETUP ? (
@@ -111,7 +161,7 @@ function Boot({ lines }) {
 function SetupScreen({ onEnter }) {
   const [username, setUsername] = useState("");
   const [roomInput, setRoomInput] = useState("");
-  const [mode, setMode] = useState(null); // "create" | "join"
+  const [mode, setMode] = useState(null);
   const [error, setError] = useState("");
   const inputRef = useRef(null);
 
@@ -141,7 +191,6 @@ function SetupScreen({ onEnter }) {
       <div style={s.setupSub}>end-to-end ephemeral · powered by firebase</div>
       <div style={s.divider}>{"─".repeat(46)}</div>
 
-      {/* Username */}
       <div style={s.field}>
         <span style={s.label}>SET USERNAME</span>
         <div style={s.inputRow2}>
@@ -160,7 +209,6 @@ function SetupScreen({ onEnter }) {
         </div>
       </div>
 
-      {/* Mode picker */}
       {!mode && (
         <div style={s.modeRow}>
           <button style={s.modeBtn} onClick={() => setMode("create")}>[CREATE ROOM]</button>
@@ -169,7 +217,6 @@ function SetupScreen({ onEnter }) {
         </div>
       )}
 
-      {/* Create */}
       {mode === "create" && (
         <div style={s.field} className="fade-in">
           <div style={s.setupHint}>A room code will be generated for you to share.</div>
@@ -178,7 +225,6 @@ function SetupScreen({ onEnter }) {
         </div>
       )}
 
-      {/* Join */}
       {mode === "join" && (
         <div style={s.field} className="fade-in">
           <span style={s.label}>ROOM CODE</span>
@@ -209,17 +255,17 @@ function SetupScreen({ onEnter }) {
 // ── Chat screen ──────────────────────────────────────────────────
 function ChatScreen({ onLeave }) {
   const username = sessionStorage.getItem("tc_username") || "ANON";
-  const roomId = sessionStorage.getItem("tc_roomId") || "UNKNOWN";
-  const userId = sessionStorage.getItem("tc_userId") || SESSION_USER_ID;
+  const roomId   = sessionStorage.getItem("tc_roomId")   || "UNKNOWN";
+  const userId   = sessionStorage.getItem("tc_userId")   || SESSION_USER_ID;
 
-  const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState("");
+  const [messages, setMessages]     = useState([]);
+  const [input, setInput]           = useState("");
   const [onlineUsers, setOnlineUsers] = useState([]);
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied]         = useState(false);
   const bottomRef = useRef(null);
-  const inputRef = useRef(null);
+  const inputRef  = useRef(null);
 
-  // ── Presence ────────────────────────────────────────────────
+  // ── Presence + auto-delete room when empty ───────────────────
   useEffect(() => {
     const presenceRef = doc(db, "rooms", roomId, "presence", userId);
     setDoc(presenceRef, { username, joinedAt: serverTimestamp() });
@@ -229,13 +275,18 @@ function ChatScreen({ onLeave }) {
       (snap) => setOnlineUsers(snap.docs.map((d) => d.data().username))
     );
 
-    const handleUnload = () => deleteDoc(presenceRef);
-    window.addEventListener("beforeunload", handleUnload);
+    const cleanup = async () => {
+      await deleteDoc(presenceRef);
+      // After removing ourselves, check if room is now empty
+      await deleteRoomIfEmpty(roomId);
+    };
+
+    window.addEventListener("beforeunload", cleanup);
 
     return () => {
       unsub();
-      deleteDoc(presenceRef);
-      window.removeEventListener("beforeunload", handleUnload);
+      cleanup();
+      window.removeEventListener("beforeunload", cleanup);
     };
   }, [roomId, userId, username]);
 
@@ -246,14 +297,11 @@ function ChatScreen({ onLeave }) {
       orderBy("timestamp", "asc")
     );
     const unsub = onSnapshot(q, (snap) => {
-      setMessages(
-        snap.docs.map((d) => ({ id: d.id, ...d.data() }))
-      );
+      setMessages(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
     });
     return () => unsub();
   }, [roomId]);
 
-  // ── Auto scroll ──────────────────────────────────────────────
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -288,13 +336,14 @@ function ChatScreen({ onLeave }) {
   };
 
   const leaveRoom = async () => {
-    await deleteDoc(doc(db, "rooms", roomId, "presence", userId));
+    const presenceRef = doc(db, "rooms", roomId, "presence", userId);
+    await deleteDoc(presenceRef);
+    await deleteRoomIfEmpty(roomId);
     onLeave();
   };
 
   return (
     <>
-      {/* Room info bar */}
       <div style={s.roomBar}>
         <span style={s.roomLabel}>ROOM:</span>
         <span style={s.roomId}>{roomId}</span>
@@ -307,11 +356,13 @@ function ChatScreen({ onLeave }) {
         <button style={s.leaveBtn} onClick={leaveRoom}>[LEAVE]</button>
       </div>
 
-      {/* Messages */}
       <div style={s.messages}>
         <div style={s.systemMsg}>
           ── joined as <span style={s.ownName}>{username}</span> · room{" "}
           <span style={s.roomCode}>{roomId}</span> · share the code with your friend ──
+        </div>
+        <div style={s.systemMsg}>
+          ── content blurs when window loses focus · right-click disabled ──
         </div>
 
         {messages.map((msg) => {
@@ -319,9 +370,7 @@ function ChatScreen({ onLeave }) {
           return (
             <div key={msg.id} style={s.msgBlock} className="line-in">
               <div style={s.prompt}>
-                <span style={isOwn ? s.ownTag : s.otherTag}>
-                  {msg.username}
-                </span>
+                <span style={isOwn ? s.ownTag : s.otherTag}>{msg.username}</span>
                 <span style={s.promptArrow}>&gt;</span>
                 <span style={s.msgTime}>[{msg.localTime || "??:??:??"}]</span>
               </div>
@@ -336,7 +385,6 @@ function ChatScreen({ onLeave }) {
         <div ref={bottomRef} />
       </div>
 
-      {/* Input */}
       <div style={s.inputRow}>
         <span style={s.inputPrompt}>
           <span style={s.inputUser}>{username}</span>
@@ -361,7 +409,6 @@ function ChatScreen({ onLeave }) {
         </button>
       </div>
 
-      {/* Status bar */}
       <div style={s.statusBar}>
         <span>STATUS: <span style={s.statusReady}>CONNECTED</span></span>
         <span>MSGS: {messages.length}</span>
@@ -412,6 +459,11 @@ const css = `
   button { font-family: 'Share Tech Mono', monospace; cursor: pointer; }
   button:hover:not(:disabled) { background: #1a1a1a !important; color: #fff !important; border-color: #555 !important; }
   button:disabled { cursor: default; }
+
+  /* Disable text selection across the app */
+  * { -webkit-user-select: none; user-select: none; }
+  /* Re-enable only for the message input */
+  input { -webkit-user-select: text; user-select: text; }
 `;
 
 // ── Styles ───────────────────────────────────────────────────────
@@ -428,8 +480,28 @@ const s = {
     overflow: "hidden",
     borderLeft: "1px solid #1e1e1e",
     borderRight: "1px solid #1e1e1e",
+    position: "relative",
   },
   body: { flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" },
+
+  // blur overlay
+  blurOverlay: {
+    position: "absolute",
+    inset: 0,
+    zIndex: 50,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    pointerEvents: "none",
+  },
+  blurText: {
+    fontSize: 12,
+    color: "#444",
+    letterSpacing: "0.12em",
+    border: "1px solid #222",
+    padding: "10px 20px",
+    background: "#0a0a0a",
+  },
 
   // title
   titleBar: {
@@ -501,7 +573,7 @@ const s = {
     flex: 1, overflowY: "auto", padding: "16px 20px",
     display: "flex", flexDirection: "column",
   },
-  systemMsg: { fontSize: 11, color: "#2e2e2e", marginBottom: 16, letterSpacing: "0.04em" },
+  systemMsg: { fontSize: 11, color: "#2e2e2e", marginBottom: 8, letterSpacing: "0.04em" },
   msgBlock: { marginBottom: 12 },
   prompt: { display: "flex", alignItems: "center", gap: 6, marginBottom: 4, fontSize: 11, letterSpacing: "0.08em" },
   ownTag: { color: "#ffffff", fontSize: 11 },
